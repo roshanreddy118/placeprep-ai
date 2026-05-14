@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 import { connectDB } from "@/lib/mongodb";
 import { User } from "@/models/User";
 import Stripe from "stripe";
@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(
+    event = getStripe().webhooks.constructEvent(
       body,
       sig,
       process.env.STRIPE_WEBHOOK_SECRET!
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
       const userId = session.metadata?.userId;
 
       if (userId && session.subscription) {
-        const subscription = await stripe.subscriptions.retrieve(
+        const subscription = await getStripe().subscriptions.retrieve(
           session.subscription as string
         );
         const periodEnd = new Date(
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
 
       if (subscriptionId) {
         const subscription =
-          await stripe.subscriptions.retrieve(subscriptionId);
+          await getStripe().subscriptions.retrieve(subscriptionId);
         const periodEnd = new Date(
           subscription.items.data[0].current_period_end * 1000
         );
