@@ -1,36 +1,37 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PlacePrep AI 🔥
 
-## Getting Started
+**Like Duolingo, but for Placements.** An AI-powered daily placement preparation app that helps students ace their interviews in just 10 minutes a day.
 
-First, run the development server:
+## What It Does
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+Every day, PlacePrep AI generates **5 fresh challenges** using AI:
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- 🧠 **Aptitude Question** — Logical & quantitative reasoning
+- 💻 **Coding Problem** — LeetCode-style with a built-in code editor (Python & JavaScript)
+- 🎤 **Interview Question** — Behavioral & technical prep
+- 💬 **Communication Tip** — Workplace soft skills
+- 📰 **Industry Update** — Current tech trends
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Key Features
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Adaptive Difficulty** — AI adjusts challenge difficulty based on your level and accuracy (Easy → Medium → Hard)
+- **Streak Tracking** — Build daily streaks and don't break the chain
+- **XP & Leveling** — Earn XP, level up, unlock badges
+- **Leaderboard** — Compete with other students
+- **Dark & Light Mode** — Full theme support
+- **Forgot Password** — Email-based password reset
+- **Feedback System** — Submit feedback directly from the landing page
 
-## Learn More
+## Tech Stack
 
-To learn more about Next.js, take a look at the following resources:
+- **Framework:** Next.js (App Router)
+- **Database:** MongoDB Atlas
+- **Auth:** NextAuth.js (JWT)
+- **AI Providers:** Gemini 2.0 Flash → Groq → OpenRouter (fallback chain)
+- **Email:** Resend
+- **Styling:** Tailwind CSS + Framer Motion
+- **Code Editor:** Monaco Editor
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Built With ❤️
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Built by someone who's felt the placement pressure — so you don't have to struggle alone.
