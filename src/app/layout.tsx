@@ -16,6 +16,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "PlacePrep AI — Daily Placement Coach",
   description: "Your AI-powered daily placement preparation companion. Aptitude, coding, interviews, and more.",
+  icons: {
+    icon: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({

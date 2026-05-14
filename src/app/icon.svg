@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#06b6d4"/>
+      <stop offset="100%" style="stop-color:#0891b2"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:rgba(255,255,255,0.25)"/>
+      <stop offset="100%" style="stop-color:rgba(255,255,255,0)"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="108" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="108" fill="url(#shine)"/>
+  <!-- P letter -->
+  <text x="256" y="380" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-weight="800" font-size="360" fill="white">P</text>
+  <!-- AI sparkle dot -->
+  <circle cx="400" cy="110" r="28" fill="white" opacity="0.9"/>
+  <circle cx="400" cy="110" r="14" fill="#06b6d4"/>
+</svg>
