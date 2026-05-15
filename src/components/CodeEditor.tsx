@@ -8,6 +8,8 @@ import {
   CheckCircle2,
   XCircle,
   RotateCcw,
+  Terminal,
+  FlaskConical,
 } from "lucide-react";
 import Button from "@/components/Button";
 import { executeCode } from "@/lib/codeRunner";
@@ -46,6 +48,11 @@ export default function CodeEditor({
   const [passedCount, setPassedCount] = useState(0);
   const [allPassed, setAllPassed] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [mode, setMode] = useState<"test" | "custom">("custom");
+  const [customInput, setCustomInput] = useState("");
+  const [customOutput, setCustomOutput] = useState<string | null>(null);
+  const [customError, setCustomError] = useState(false);
+  const [runningCustom, setRunningCustom] = useState(false);
 
   const handleLanguageChange = (lang: "python" | "javascript") => {
     setLanguage(lang);
@@ -86,6 +93,29 @@ export default function CodeEditor({
     }
   }, [code, language, testCases, onAllPassed]);
 
+  const handleCustomRun = useCallback(async () => {
+    setRunningCustom(true);
+    setCustomOutput(null);
+    setCustomError(false);
+
+    try {
+      const dummyTestCase = [{ input: customInput || "null", expected: "" }];
+      const data = await executeCode(code, language, dummyTestCase);
+      const result = data.results[0];
+      if (result.error) {
+        setCustomOutput(result.actual);
+        setCustomError(true);
+      } else {
+        setCustomOutput(result.actual);
+      }
+    } catch {
+      setCustomOutput("Execution failed. Please check your code.");
+      setCustomError(true);
+    } finally {
+      setRunningCustom(false);
+    }
+  }, [code, language, customInput]);
+
   const visibleTestCases = testCases.filter((tc) => !tc.hidden);
 
   return (
@@ -112,10 +142,17 @@ export default function CodeEditor({
             <RotateCcw className="w-3.5 h-3.5" />
             Reset
           </Button>
-          <Button size="sm" onClick={handleRun} loading={running}>
-            {!running && <Play className="w-3.5 h-3.5" />}
-            Run Code
-          </Button>
+          {mode === "custom" ? (
+            <Button size="sm" onClick={handleCustomRun} loading={runningCustom}>
+              {!runningCustom && <Play className="w-3.5 h-3.5" />}
+              Run
+            </Button>
+          ) : (
+            <Button size="sm" onClick={handleRun} loading={running}>
+              {!running && <Play className="w-3.5 h-3.5" />}
+              Run Tests
+            </Button>
+          )}
         </div>
       </div>
 
@@ -140,7 +177,72 @@ export default function CodeEditor({
         />
       </div>
 
-      {/* Test Cases (visible ones) */}
+      {/* Mode Tabs */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setMode("custom")}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            mode === "custom"
+              ? "bg-accent/20 text-accent-light border border-accent/30"
+              : "bg-card border border-border text-muted hover:text-foreground"
+          }`}
+        >
+          <Terminal className="w-3.5 h-3.5" />
+          Custom Input
+        </button>
+        <button
+          onClick={() => setMode("test")}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+            mode === "test"
+              ? "bg-accent/20 text-accent-light border border-accent/30"
+              : "bg-card border border-border text-muted hover:text-foreground"
+          }`}
+        >
+          <FlaskConical className="w-3.5 h-3.5" />
+          Test Cases
+        </button>
+      </div>
+
+      {/* Custom Input Mode */}
+      {mode === "custom" && (
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-muted mb-1.5">
+              Input (JSON format — e.g. <code className="text-accent-light">[1, 2]</code> for two args, or <code className="text-accent-light">5</code> for single arg)
+            </label>
+            <textarea
+              value={customInput}
+              onChange={(e) => setCustomInput(e.target.value)}
+              placeholder='e.g. [1, 2] or "hello" or 42'
+              rows={3}
+              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/25 transition-all resize-none"
+            />
+          </div>
+          {customOutput !== null && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <label className="block text-xs font-medium text-muted mb-1.5">
+                Output
+              </label>
+              <pre
+                className={`p-3 rounded-lg border text-sm font-mono whitespace-pre-wrap ${
+                  customError
+                    ? "bg-danger/5 border-danger/20 text-danger"
+                    : "bg-success/5 border-success/20 text-foreground"
+                }`}
+              >
+                {customOutput}
+              </pre>
+            </motion.div>
+          )}
+        </div>
+      )}
+
+      {/* Test Cases (visible ones) — only show in test mode */}
+      {mode === "test" && (
+      <>
       <div className="space-y-2">
         <h4 className="text-sm font-medium text-muted">
           Test Cases ({visibleTestCases.length} visible, {testCases.length - visibleTestCases.length} hidden)
@@ -266,6 +368,8 @@ export default function CodeEditor({
             </Button>
           )}
         </motion.div>
+      )}
+      </>
       )}
     </div>
   );

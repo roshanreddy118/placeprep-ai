@@ -8,6 +8,7 @@ export interface IUser {
   email: string;
   password: string;
   college: string;
+  emailVerified: boolean;
   xp: number;
   level: number;
   streak: number;
@@ -32,6 +33,7 @@ const UserSchema = new Schema<IUser>(
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     college: { type: String, required: true },
+    emailVerified: { type: Boolean, default: false },
     xp: { type: Number, default: 0 },
     level: { type: Number, default: 1 },
     streak: { type: Number, default: 0 },

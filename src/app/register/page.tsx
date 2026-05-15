@@ -13,6 +13,7 @@ import {
   ChevronRight,
   GraduationCap,
   ArrowLeft,
+  CheckCircle2,
 } from "lucide-react";
 import Button from "@/components/Button";
 
@@ -24,6 +25,7 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [verificationSent, setVerificationSent] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,20 +47,9 @@ export default function RegisterPage() {
         return;
       }
 
-      // Auto sign in after registration
-      const { signIn } = await import("next-auth/react");
-      const result = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-      });
-
-      if (result?.error) {
-        setError(result.error);
-        setLoading(false);
-      } else {
-        window.location.href = "/dashboard";
-      }
+      // Show verification email sent message
+      setVerificationSent(true);
+      setLoading(false);
     } catch {
       setError("Something went wrong. Please try again.");
       setLoading(false);
@@ -105,6 +96,31 @@ export default function RegisterPage() {
 
         {/* Form */}
         <div className="bg-card border border-border rounded-2xl p-8">
+          {verificationSent ? (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="text-center py-4"
+            >
+              <CheckCircle2 className="w-12 h-12 text-success mx-auto mb-4" />
+              <h2 className="text-lg font-semibold mb-2">Check your email</h2>
+              <p className="text-sm text-muted mb-6">
+                We&apos;ve sent a verification link to{" "}
+                <strong>{email}</strong>. Please click the link to verify your
+                account before signing in.
+              </p>
+              <p className="text-xs text-muted mb-4">
+                The link expires in 24 hours.
+              </p>
+              <Link
+                href="/login"
+                className="text-sm text-accent-light hover:underline font-medium"
+              >
+                Go to Login
+              </Link>
+            </motion.div>
+          ) : (
+          <>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
               <div className="p-3 rounded-lg bg-danger/10 border border-danger/20 text-danger text-sm">
@@ -211,6 +227,8 @@ export default function RegisterPage() {
               </Link>
             </p>
           </div>
+          </>
+          )}
         </div>
       </motion.div>
     </div>
