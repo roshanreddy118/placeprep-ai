@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
-import { DailyChallenge } from "@/models/DailyChallenge";
+import { DailyChallenge, IChallengeItem } from "@/models/DailyChallenge";
 import { User } from "@/models/User";
 
 export const dynamic = "force-dynamic";
@@ -200,7 +200,7 @@ export async function GET() {
       .limit(5)
       .lean();
     const recentTopics = recentChallenges
-      .flatMap((c) => c.challenges.map((ch) => {
+      .flatMap((c) => c.challenges.map((ch: IChallengeItem) => {
         if (ch.coding) return `Coding: ${ch.coding.title}`;
         return `${ch.category}: ${ch.question.slice(0, 80)}`;
       }))
