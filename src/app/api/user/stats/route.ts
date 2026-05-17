@@ -5,6 +5,18 @@ import { connectDB } from "@/lib/mongodb";
 import { User } from "@/models/User";
 import { UserProgress } from "@/models/UserProgress";
 
+function getISTDate(offsetDays = 0) {
+  const now = new Date();
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  const ist = new Date(now.getTime() + istOffset);
+  if (offsetDays) ist.setDate(ist.getDate() + offsetDays);
+  return ist;
+}
+
+function getISTDateStr(offsetDays = 0) {
+  return getISTDate(offsetDays).toISOString().split("T")[0];
+}
+
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
@@ -21,7 +33,7 @@ export async function GET() {
     }
 
     // Get today's progress
-    const today = new Date().toISOString().split("T")[0];
+    const today = getISTDateStr();
     const todayProgress = await UserProgress.findOne({ userId, date: today });
 
     // Get rank
@@ -34,9 +46,9 @@ export async function GET() {
         : 0;
 
     // Get this week's activity
-    const now = new Date();
-    const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - now.getDay() + 1); // Monday
+    const istNow = getISTDate();
+    const startOfWeek = new Date(istNow);
+    startOfWeek.setDate(istNow.getDate() - ((istNow.getDay() + 6) % 7)); // Monday
     startOfWeek.setHours(0, 0, 0, 0);
 
     const weekProgress = await UserProgress.find({
@@ -57,9 +69,7 @@ export async function GET() {
     });
 
     // Get last 28 days of activity for heatmap
-    const fourWeeksAgo = new Date(now);
-    fourWeeksAgo.setDate(now.getDate() - 27);
-    fourWeeksAgo.setHours(0, 0, 0, 0);
+    const fourWeeksAgo = getISTDate(-27);
 
     const recentProgress = await UserProgress.find({
       userId,

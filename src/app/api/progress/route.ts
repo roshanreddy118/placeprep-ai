@@ -5,6 +5,14 @@ import { connectDB } from "@/lib/mongodb";
 import { User } from "@/models/User";
 import { UserProgress } from "@/models/UserProgress";
 
+function getISTDateStr(offsetDays = 0) {
+  const now = new Date();
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  const ist = new Date(now.getTime() + istOffset);
+  if (offsetDays) ist.setDate(ist.getDate() + offsetDays);
+  return ist.toISOString().split("T")[0];
+}
+
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -20,7 +28,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid results" }, { status: 400 });
     }
 
-    const today = new Date().toISOString().split("T")[0];
+    const today = getISTDateStr();
 
     // Check if already submitted today
     const existing = await UserProgress.findOne({ userId, date: today });
@@ -53,9 +61,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Update streak
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split("T")[0];
+    const yesterdayStr = getISTDateStr(-1);
 
     let newStreak = 1;
     if (user.lastActiveDate === yesterdayStr) {
