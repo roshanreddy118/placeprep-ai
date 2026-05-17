@@ -6,10 +6,16 @@ import { connectDB } from "@/lib/mongodb";
 import { DailyChallenge } from "@/models/DailyChallenge";
 import { User } from "@/models/User";
 
+export const dynamic = "force-dynamic";
+
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 function getTodayStr() {
-  return new Date().toISOString().split("T")[0];
+  // Use IST (UTC+5:30) so the date flips at midnight India time
+  const now = new Date();
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  const ist = new Date(now.getTime() + istOffset);
+  return ist.toISOString().split("T")[0];
 }
 
 type DifficultyTier = "easy" | "medium" | "hard";
@@ -46,7 +52,7 @@ const DIFFICULTY_CONFIG: Record<DifficultyTier, { codingLevel: string; mcqLevel:
   },
 };
 
-function buildPrompt(difficulty: DifficultyTier): string {
+function buildPrompt(difficulty: DifficultyTier, recentTopics?: string): string {
   const today = new Date().toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
@@ -160,7 +166,8 @@ Other rules:
 - Questions must be unique and different each day
 - Industry updates should reflect real current trends as of ${today}
 - All explanations must be educational and detailed
-- Return ONLY the JSON, no markdown formatting or code blocks`;
+- Return ONLY the JSON, no markdown formatting or code blocks
+${recentTopics ? `\nCRITICAL — DO NOT repeat these recently used topics/questions:\n- ${recentTopics}\nGenerate completely different questions on new topics.` : ""}`;
 }
 
 export async function GET() {
@@ -187,8 +194,20 @@ export async function GET() {
       return NextResponse.json({ ...existing.toObject(), date: todayStr, difficulty });
     }
 
+    // Fetch recent challenge topics to avoid repetition
+    const recentChallenges = await DailyChallenge.find({})
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .lean();
+    const recentTopics = recentChallenges
+      .flatMap((c) => c.challenges.map((ch) => {
+        if (ch.coding) return `Coding: ${ch.coding.title}`;
+        return `${ch.category}: ${ch.question.slice(0, 80)}`;
+      }))
+      .join("\n- ");
+
     // Generate new challenges via AI with fallback chain: Gemini → Groq → OpenRouter
-    const prompt = buildPrompt(difficulty);
+    const prompt = buildPrompt(difficulty, recentTopics);
     let text: string | null = null;
 
     // 1. Try Gemini
@@ -215,6 +234,7 @@ export async function GET() {
             temperature: 0.7,
             max_tokens: 4096,
           }),
+          cache: "no-store",
         });
         if (!groqRes.ok) throw new Error(`Groq ${groqRes.status}: ${await groqRes.text()}`);
         const groqData = await groqRes.json();
@@ -240,6 +260,7 @@ export async function GET() {
             temperature: 0.7,
             max_tokens: 4096,
           }),
+          cache: "no-store",
         });
         if (!orRes.ok) throw new Error(`OpenRouter ${orRes.status}: ${await orRes.text()}`);
         const orData = await orRes.json();
