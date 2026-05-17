@@ -1,10 +1,11 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import { DailyChallenge, IChallengeItem } from "@/models/DailyChallenge";
 import { User } from "@/models/User";
+import { rateLimit } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 
@@ -170,20 +171,28 @@ Other rules:
 ${recentTopics ? `\nCRITICAL — DO NOT repeat these recently used topics/questions:\n- ${recentTopics}\nGenerate completely different questions on new topics.` : ""}`;
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     await connectDB();
 
-    // Get user session for personalized difficulty
+    // Require authentication
     const session = await getServerSession(authOptions);
-    let difficulty: DifficultyTier = "easy";
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    if (session?.user) {
-      const userId = (session.user as { id: string }).id;
-      const user = await User.findById(userId).lean();
-      if (user) {
-        difficulty = getUserDifficulty(user.level, user.totalCorrect, user.totalAttempted);
-      }
+    // Rate limit per user
+    const userId = (session.user as { id: string }).id;
+    const { success } = rateLimit(`generate:${userId}`, { maxRequests: 10, windowMs: 60 * 1000 });
+    if (!success) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+    }
+
+    // Get user for personalized difficulty
+    let difficulty: DifficultyTier = "easy";
+    const user = await User.findById(userId).lean();
+    if (user) {
+      difficulty = getUserDifficulty(user.level, user.totalCorrect, user.totalAttempted);
     }
 
     // Check if today's challenge for this difficulty already exists

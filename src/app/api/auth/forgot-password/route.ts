@@ -4,11 +4,18 @@ import { Resend } from "resend";
 import { connectDB } from "@/lib/mongodb";
 import { User } from "@/models/User";
 import { PasswordReset } from "@/models/PasswordReset";
+import { rateLimit } from "@/lib/rateLimit";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = req.headers.get("x-forwarded-for") || "unknown";
+    const { success } = rateLimit(`forgot-password:${ip}`, { maxRequests: 3, windowMs: 15 * 60 * 1000 });
+    if (!success) {
+      return NextResponse.json({ error: "Too many requests. Try again later." }, { status: 429 });
+    }
+
     const { email } = await req.json();
 
     if (!email) {
@@ -28,9 +35,10 @@ export async function POST(req: NextRequest) {
 
     // Generate a secure token
     const token = crypto.randomBytes(32).toString("hex");
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
-    await PasswordReset.create({ email, token, expiresAt });
+    await PasswordReset.create({ email, tokenHash, expiresAt });
 
     // Build reset URL
     const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";

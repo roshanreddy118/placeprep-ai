@@ -5,11 +5,18 @@ import { Resend } from "resend";
 import { connectDB } from "@/lib/mongodb";
 import { User } from "@/models/User";
 import { EmailVerification } from "@/models/EmailVerification";
+import { rateLimit } from "@/lib/rateLimit";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(req: NextRequest) {
   try {
+    const ip = req.headers.get("x-forwarded-for") || "unknown";
+    const { success } = rateLimit(`signup:${ip}`, { maxRequests: 5, windowMs: 15 * 60 * 1000 });
+    if (!success) {
+      return NextResponse.json({ error: "Too many requests. Try again later." }, { status: 429 });
+    }
+
     const { name, email, password, college } = await req.json();
 
     if (!name || !email || !password || !college) {
@@ -17,6 +24,16 @@ export async function POST(req: NextRequest) {
         { error: "All fields are required" },
         { status: 400 }
       );
+    }
+
+    if (typeof name !== "string" || name.trim().length > 100) {
+      return NextResponse.json({ error: "Name must be under 100 characters" }, { status: 400 });
+    }
+    if (typeof email !== "string" || email.trim().length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json({ error: "Invalid email address" }, { status: 400 });
+    }
+    if (typeof college !== "string" || college.trim().length > 200) {
+      return NextResponse.json({ error: "College name must be under 200 characters" }, { status: 400 });
     }
 
     if (password.length < 8) {

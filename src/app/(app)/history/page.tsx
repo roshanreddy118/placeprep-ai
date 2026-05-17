@@ -68,12 +68,17 @@ export default function HistoryPage() {
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr + "T00:00:00");
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
+    // Use IST-aware "today" calculation to match server-stored dates
+    const now = new Date();
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const istNow = new Date(now.getTime() + istOffset);
+    const todayStr = istNow.toISOString().split("T")[0];
+    const istYesterday = new Date(istNow);
+    istYesterday.setDate(istYesterday.getDate() - 1);
+    const yesterdayStr = istYesterday.toISOString().split("T")[0];
 
-    if (dateStr === today.toISOString().split("T")[0]) return "Today";
-    if (dateStr === yesterday.toISOString().split("T")[0]) return "Yesterday";
+    if (dateStr === todayStr) return "Today";
+    if (dateStr === yesterdayStr) return "Yesterday";
 
     return date.toLocaleDateString("en-US", {
       weekday: "short",

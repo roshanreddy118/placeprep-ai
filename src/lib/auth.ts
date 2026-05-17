@@ -51,6 +51,7 @@ export const authOptions: AuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+        token.iat = Math.floor(Date.now() / 1000);
       }
       return token;
     },
@@ -58,6 +59,20 @@ export const authOptions: AuthOptions = {
       if (session.user) {
         (session.user as { id?: string }).id = token.id as string;
       }
+
+      // Invalidate session if password was changed after token was issued
+      if (token.id && token.iat) {
+        await connectDB();
+        const user = await User.findById(token.id).select("passwordChangedAt").lean();
+        if (user?.passwordChangedAt) {
+          const changedAt = Math.floor(new Date(user.passwordChangedAt).getTime() / 1000);
+          if (changedAt > (token.iat as number)) {
+            // Password changed after this token was issued — invalidate
+            return { ...session, user: undefined, expires: new Date(0).toISOString() };
+          }
+        }
+      }
+
       return session;
     },
   },

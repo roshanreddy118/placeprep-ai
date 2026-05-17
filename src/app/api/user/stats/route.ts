@@ -45,16 +45,15 @@ export async function GET() {
         ? Math.round((user.totalCorrect / user.totalAttempted) * 100)
         : 0;
 
-    // Get this week's activity
+    // Get this week's activity — compute using date strings to avoid IST offset issues
     const istNow = getISTDate();
-    const startOfWeek = new Date(istNow);
-    startOfWeek.setDate(istNow.getDate() - ((istNow.getDay() + 6) % 7)); // Monday
-    startOfWeek.setHours(0, 0, 0, 0);
+    const dayOfWeek = (istNow.getDay() + 6) % 7; // 0=Mon, 6=Sun
+    const startOfWeekStr = getISTDateStr(-dayOfWeek);
 
     const weekProgress = await UserProgress.find({
       userId,
       date: {
-        $gte: startOfWeek.toISOString().split("T")[0],
+        $gte: startOfWeekStr,
         $lte: today,
       },
     }).select("date completed");
@@ -62,18 +61,16 @@ export async function GET() {
     const weekDates = new Set(weekProgress.filter((p) => p.completed).map((p) => p.date));
     const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
     const weekActivity = days.map((day, i) => {
-      const d = new Date(startOfWeek);
-      d.setDate(d.getDate() + i);
-      const dateStr = d.toISOString().split("T")[0];
+      const dateStr = getISTDateStr(-dayOfWeek + i);
       return { day, completed: weekDates.has(dateStr) };
     });
 
     // Get last 28 days of activity for heatmap
-    const fourWeeksAgo = getISTDate(-27);
+    const fourWeeksAgoStr = getISTDateStr(-27);
 
     const recentProgress = await UserProgress.find({
       userId,
-      date: { $gte: fourWeeksAgo.toISOString().split("T")[0], $lte: today },
+      date: { $gte: fourWeeksAgoStr, $lte: today },
       completed: true,
     }).select("date totalXP").lean();
 

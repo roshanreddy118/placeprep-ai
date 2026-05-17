@@ -4,6 +4,16 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import { User } from "@/models/User";
 import { UserProgress } from "@/models/UserProgress";
+import { DailyChallenge, IChallengeItem } from "@/models/DailyChallenge";
+
+type DifficultyTier = "easy" | "medium" | "hard";
+
+function getUserDifficulty(level: number, totalCorrect: number, totalAttempted: number): DifficultyTier {
+  const accuracy = totalAttempted > 0 ? totalCorrect / totalAttempted : 0;
+  if (level <= 3 || (totalAttempted >= 5 && accuracy < 0.4)) return "easy";
+  if (level <= 7 || (totalAttempted >= 5 && accuracy < 0.7)) return "medium";
+  return "hard";
+}
 
 function getISTDateStr(offsetDays = 0) {
   const now = new Date();
@@ -22,7 +32,7 @@ export async function POST(req: NextRequest) {
 
     await connectDB();
     const userId = (session.user as { id: string }).id;
-    const { results, totalXP } = await req.json();
+    const { results } = await req.json();
 
     if (!results || !Array.isArray(results)) {
       return NextResponse.json({ error: "Invalid results" }, { status: 400 });
@@ -30,34 +40,73 @@ export async function POST(req: NextRequest) {
 
     const today = getISTDateStr();
 
-    // Check if already submitted today
-    const existing = await UserProgress.findOne({ userId, date: today });
-    if (existing) {
-      return NextResponse.json(
-        { error: "Already submitted today", progress: existing },
-        { status: 409 }
-      );
-    }
-
-    const correctCount = results.filter(
-      (r: { correct: boolean }) => r.correct
-    ).length;
-    const allCorrect = correctCount === results.length;
-
-    // Save progress
-    const progress = await UserProgress.create({
-      userId,
-      date: today,
-      completed: true,
-      results,
-      totalXP,
-      completedAt: new Date(),
-    });
-
-    // Update user stats
+    // Look up the user to determine their difficulty tier
     const user = await User.findById(userId);
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Fetch today's challenge to verify answers server-side
+    const userDifficulty = getUserDifficulty(user.level, user.totalCorrect, user.totalAttempted);
+    const cacheKey = `${today}_${userDifficulty}`;
+    const dailyChallenge = await DailyChallenge.findOne({ date: cacheKey });
+
+    // Server-side answer verification
+    let verifiedCorrectCount = 0;
+    let verifiedTotalXP = 0;
+    const verifiedResults = results.map((r: { challengeId: string; category: string; answer?: string | number }) => {
+      const challenge = dailyChallenge?.challenges.find((ch: IChallengeItem) => ch.id === r.challengeId);
+      let correct = false;
+      let xpEarned = 0;
+
+      if (challenge) {
+        // For MCQ challenges, verify the selected answer matches the correct option
+        if (challenge.id !== "coding" && typeof r.answer === "number") {
+          correct = r.answer === challenge.correct;
+        }
+        // For coding challenges, trust the client result (code ran in browser sandbox)
+        if (challenge.id === "coding") {
+          correct = r.answer === "passed";
+        }
+        xpEarned = correct ? challenge.xp : 0;
+      }
+
+      if (correct) verifiedCorrectCount++;
+      verifiedTotalXP += xpEarned;
+
+      return {
+        challengeId: r.challengeId,
+        category: r.category,
+        correct,
+        xpEarned,
+        answer: r.answer,
+      };
+    });
+
+    const allCorrect = verifiedCorrectCount === verifiedResults.length;
+
+    // Use findOneAndUpdate with upsert to prevent race condition
+    const existingProgress = await UserProgress.findOneAndUpdate(
+      { userId, date: today },
+      {
+        $setOnInsert: {
+          userId,
+          date: today,
+          completed: true,
+          results: verifiedResults,
+          totalXP: verifiedTotalXP,
+          completedAt: new Date(),
+        },
+      },
+      { upsert: true, new: true, rawResult: true }
+    );
+
+    // If the document already existed (not a new upsert), reject
+    if (!existingProgress.lastErrorObject?.upserted) {
+      return NextResponse.json(
+        { error: "Already submitted today" },
+        { status: 409 }
+      );
     }
 
     // Update streak
@@ -97,7 +146,7 @@ export async function POST(req: NextRequest) {
       newBadges.push("fifty-days");
     }
 
-    const newXP = user.xp + totalXP;
+    const newXP = user.xp + verifiedTotalXP;
     const newLevel = Math.floor(newXP / 500) + 1;
 
     if (newLevel >= 5 && !newBadges.includes("level-5")) {
@@ -115,7 +164,7 @@ export async function POST(req: NextRequest) {
       { $group: { _id: "$results.category", count: { $sum: 1 } } },
     ]);
     // Include current submission
-    for (const r of results) {
+    for (const r of verifiedResults) {
       if (r.correct) {
         const existing = categoryAgg.find((a: { _id: string }) => a._id === r.category);
         if (existing) existing.count++;
@@ -141,15 +190,15 @@ export async function POST(req: NextRequest) {
       lastActiveDate: today,
       $inc: {
         totalDaysActive: user.lastActiveDate === today ? 0 : 1,
-        totalCorrect: correctCount,
-        totalAttempted: results.length,
+        totalCorrect: verifiedCorrectCount,
+        totalAttempted: verifiedResults.length,
       },
       badges: newBadges,
     });
 
     return NextResponse.json({
       success: true,
-      progress,
+      progress: existingProgress.value,
       stats: {
         xp: newXP,
         level: newLevel,

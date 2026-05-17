@@ -18,6 +18,7 @@ export interface IUser {
   totalCorrect: number;
   totalAttempted: number;
   badges: string[];
+  passwordChangedAt: Date | null;
   // Subscription
   subscription: SubscriptionStatus;
   trialEndsAt: Date;
@@ -43,6 +44,7 @@ const UserSchema = new Schema<IUser>(
     totalCorrect: { type: Number, default: 0 },
     totalAttempted: { type: Number, default: 0 },
     badges: { type: [String], default: [] },
+    passwordChangedAt: { type: Date, default: null },
     // Subscription
     subscription: {
       type: String,
