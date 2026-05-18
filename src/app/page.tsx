@@ -598,6 +598,9 @@ export default function LandingPage() {
                 PlacePrep AI
               </span>
             </div>
+            <a href="https://www.foundrlist.com/product/placeprepai?utm_source=badge&utm_medium=embed" target="_blank" rel="noopener">
+              <img src="https://www.foundrlist.com/api/badge/placeprepai" alt="Featured on FoundrList" width={150} height={48} />
+            </a>
             <p className="text-xs text-muted">
               © 2026 PlacePrep AI. Built with ❤️ by someone who&apos;s felt the placement pressure — so you don&apos;t have to struggle alone.
             </p>
